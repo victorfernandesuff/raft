@@ -19,6 +19,7 @@ package raft
 
 import "sync"
 import "labrpc"
+import "time"
 
 // import "bytes"
 // import "encoding/gob"
@@ -38,17 +39,61 @@ type ApplyMsg struct {
 }
 
 //
+// Struct de entrada de log do nó
+//
+type LogEntry struct {
+	Command interface{}
+	Term    int
+}
+
+type RaftState int
+
+const (
+	Follower RaftState = iota  // iota é um identificador q simplifica definição de constantes com auto increment dos numeros associados às constantes 
+	Candidate                  // Desta forma temos: Follower = 0, Candidate = 1, Leader = 2 e Dead = 3
+	Leader
+	Dead
+)
+
+func (s RaftState) String() string {
+	switch s {
+	case Follower:
+		return "Follower"
+	case Candidate:
+		return "Candidate"
+	case Leader:
+		return "Leader"
+	case Dead:
+		return "Dead"
+	default:
+		panic("unreachable")
+	}
+}
+
+//
 // A Go object implementing a single Raft peer.
 //
 type Raft struct {
-	mu        sync.Mutex          // Lock to protect shared access to this peer's state
-	peers     []*labrpc.ClientEnd // RPC end points of all peers
-	persister *Persister          // Object to hold this peer's persisted state
-	me        int                 // this peer's index into peers[]
+	mu                 sync.Mutex          // Lock to protect shared access to this peer's state
+	peers              []*labrpc.ClientEnd // RPC end points of all peers
+	persister          *Persister          // Object to hold this peer's persisted state
+	me                 int                 // this peer's index into peers[]
 
 	// Your data here (2A, 2B, 2C).
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
+
+	// Estados do Raft persistentes em todos os nós/servidores:
+	currentTerm        int                 // Ultimo term que o nó participou
+	votedFor           int                 // IdCandidate do nó que foi votado no current term
+	log                []LogEntry          // Log do nó
+	state              RaftState           // Estado do nó no raft: Follower, Candidate, Leader ou Dead
+	electionResetEvent *time.Timer          // Timer que engatilha nova eleição ao transformar nó Follower em Candidate
+	heartbeatTimer     *time.Timer         // Timer que engatilha heartbeat
+
+	// Estados do Raft mutáveis em todos os nós/servidores:
+	commitIndex        int                 // Index da entrada de log mais atual que o nó sabe que foi commitada
+	lastApplied        int                 // Index da entrada de log mais atual aplicada ao nó
 
 }
 
@@ -59,7 +104,7 @@ func (rf *Raft) GetState() (int, bool) {
 	var term int
 	var isleader bool
 	// Your code here (2A).
-	return term, isleader
+	return rf.currentTerm, rf.state == Leader
 }
 
 //
