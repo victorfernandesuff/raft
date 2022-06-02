@@ -88,7 +88,7 @@ type Raft struct {
 	votedFor           int                 // IdCandidate do nó que foi votado no current term
 	log                []LogEntry          // Log do nó
 	state              RaftState           // Estado do nó no raft: Follower, Candidate, Leader ou Dead
-	electionResetEvent *time.Timer          // Timer que engatilha nova eleição ao transformar nó Follower em Candidate
+	electionResetEvent *time.Timer         // Timer que engatilha nova eleição ao transformar nó Follower em Candidate
 	heartbeatTimer     *time.Timer         // Timer que engatilha heartbeat
 
 	// Estados do Raft mutáveis em todos os nós/servidores:
@@ -114,7 +114,6 @@ func (rf *Raft) GetState() (int, bool) {
 //
 func (rf *Raft) persist() {
 	// Your code here (2C).
-	// Example:
 	// w := new(bytes.Buffer)
 	// e := gob.NewEncoder(w)
 	// e.Encode(rf.xxx)
@@ -139,14 +138,16 @@ func (rf *Raft) readPersist(data []byte) {
 }
 
 
-
-
 //
 // example RequestVote RPC arguments structure.
 // field names must start with capital letters!
 //
 type RequestVoteArgs struct {
 	// Your data here (2A, 2B).
+	Term         int    //termo do nó candidate
+	CandidateID  int    //ID do nó candidate que requisitou voto
+	LastLogTerm  int    //termo da ultima entrada de log do nó candidate
+	LastLogIndex int    //index da ultima entrada de log do nó candidate
 }
 
 //
@@ -155,6 +156,30 @@ type RequestVoteArgs struct {
 //
 type RequestVoteReply struct {
 	// Your data here (2A).
+	Term        int     //currentTerm do nó follower que irá votar e para nó candidate se atualizar
+	VoteGranted bool    //true caso o nó candidate recebeu o voto
+}
+
+type RequestAppendArgs struct {
+	// Your data here (2A, 2B).
+	//LAB 2A
+	Term     int        //termo do nó leader
+	LeaderID int        //ID do nó leader
+	Entries  []Entry    //entradas de log para serem armazenadas(vazio caso seja um heartbeat)
+	//LAB 2B
+	PrevLogIndex int    //index da ultima entrada de log do nó leader
+	PrevLogTerm  int    //termo da ultima entrada de log do nó leader
+	LeaderCommit int    //commit do nó leader
+
+//
+// example RequestAppend RPC reply structure.
+// field names must start with capital letters!
+//
+type RequestAppendReply struct {
+	// Your data here (2A).
+	Term    int      //nó leader se atualiza com o currentTerm 
+	Success bool     //true caso o nó follower tiver entrada batendo com a entrada do nó leader
+	PrevIndex int    //prevLogIndex e prevLogTerm
 }
 
 //
